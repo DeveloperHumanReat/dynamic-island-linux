@@ -119,7 +119,7 @@ class WaylandIsland:
         w, h = self.width, self.height
         ctx.set_operator(cairo.Operator.CLEAR)
         ctx.paint()
-        ctx.set_operator(cairo.OPERATOR_OVER)
+        ctx.set_operator(cairo.Operator.OVER)
         background = (0.035, 0.035, 0.05) if self.settings.get("theme") == "dark" else (0.88, 0.88, 0.92)
         ctx.set_source_rgb(*background)
         self.rounded_rectangle(ctx, 4, 4, w - 8, h - 8, 22)
