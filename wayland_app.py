@@ -12,6 +12,9 @@ gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gtk, Gdk, GLib, GtkLayerShell, cairo
 from media import MediaController
 from notification_watcher import NotificationWatcher
+from settings import load as load_settings, save as save_settings
+from system_monitor import SystemMonitor
+from file_monitor import DownloadMonitor
 
 
 @dataclass
@@ -43,6 +46,11 @@ class WaylandIsland:
         self.animating = False
         self.media_active = False
         self.notification_timeout = 0
+        self.settings = load_settings()
+        self.timer_remaining = 0
+        self.timer_running = False
+        self.activity_queue: list[Activity] = []
+        self.unread_notifications = 0
 
         self.window = Gtk.Window()
         self.window.set_decorated(False)
@@ -68,6 +76,11 @@ class WaylandIsland:
         self.window.show_all()
         self.media = MediaController(self.on_media_update)
         self.notifications = NotificationWatcher(self.on_notification)
+        self.system = SystemMonitor(self.on_system_update)
+        self.downloads = DownloadMonitor(self.on_download)
+        GLib.timeout_add(2000, self.system.poll)
+        GLib.timeout_add(3000, self.downloads.poll)
+        GLib.timeout_add(1000, self.tick_timer)
         GLib.timeout_add(4200, self.auto_collapse)
 
     @staticmethod
@@ -94,7 +107,8 @@ class WaylandIsland:
         ctx.set_operator(cairo.OPERATOR_CLEAR)
         ctx.paint()
         ctx.set_operator(cairo.OPERATOR_OVER)
-        ctx.set_source_rgb(0.035, 0.035, 0.05)
+        background = (0.035, 0.035, 0.05) if self.settings.get("theme") == "dark" else (0.88, 0.88, 0.92)
+        ctx.set_source_rgb(*background)
         self.rounded_rectangle(ctx, 4, 4, w - 8, h - 8, 22)
         ctx.fill()
 
@@ -157,13 +171,18 @@ class WaylandIsland:
         title = str(data.get("title", "Music"))[:32]
         artist = str(data.get("artist", ""))[:36]
         self.activity = Activity("♪", title, artist or "Music", (0.61, 0.55, 1.0))
+        self.push_activity(self.activity)
         self.area.queue_draw()
 
     def on_notification(self, app: str, summary: str, body: str) -> None:
         def show() -> bool:
+            self.unread_notifications += 1
             title = (summary or app or "Notification")[:42]
-            detail = (body or app or "New notification").replace("\n", " ")[:58]
+            detail = (body or app or "New notification").replace("\n", " ")[:48]
+            if self.unread_notifications > 1:
+                detail = f"{detail}  ·  {self.unread_notifications} unread"
             self.activity = Activity("•", title, detail, (0.44, 0.88, 0.63))
+            self.push_activity(self.activity)
             self.set_expanded(True)
             if self.notification_timeout:
                 GLib.source_remove(self.notification_timeout)
@@ -171,18 +190,89 @@ class WaylandIsland:
             return False
         GLib.idle_add(show)
 
+    def on_download(self, filename: str) -> None:
+        self.activity = Activity("↓", "Download ready", filename[:42], (0.38, 0.84, 1.0))
+        self.push_activity(self.activity)
+        self.set_expanded(True)
+        GLib.timeout_add(3200, self.auto_collapse)
+        self.area.queue_draw()
+
+    def on_system_update(self, payload: dict) -> None:
+        changed = payload.get("changed", {})
+        state = payload.get("state", {})
+        if state.get("call"):
+            self.activity = Activity("☎", "Active call", "Microphone in use", (0.42, 0.9, 0.62))
+        elif state.get("mic_active"):
+            self.activity = Activity("●", "Microphone active", "Audio input is in use", (1.0, 0.45, 0.45))
+        elif "battery" in changed and state.get("battery", 100) <= 20:
+            self.activity = Activity("▰", "Low battery", f"{state['battery']}% remaining", (1.0, 0.55, 0.38))
+        elif "volume" in changed:
+            self.activity = Activity("◖", "Volume", f"{state.get('volume', 0)}%", (0.45, 0.78, 1.0))
+        elif "network" in changed:
+            label = "Network connected" if state.get("network") == "connected" else "Network offline"
+            self.activity = Activity("⌁", label, "System status changed", (0.45, 0.78, 1.0))
+        else:
+            return
+        self.push_activity(self.activity)
+        self.set_expanded(True)
+        GLib.timeout_add(2600, self.auto_collapse)
+        self.area.queue_draw()
+
+    def push_activity(self, activity: Activity) -> None:
+        self.activity_queue = [item for item in self.activity_queue if item.title != activity.title]
+        self.activity_queue.insert(0, activity)
+        self.activity_queue = self.activity_queue[:6]
+
+    def tick_timer(self) -> bool:
+        if self.timer_running and self.timer_remaining > 0:
+            self.timer_remaining -= 1
+            minutes, seconds = divmod(self.timer_remaining, 60)
+            self.activity = Activity("◷", "Timer", f"{minutes:02d}:{seconds:02d} remaining", (1.0, 0.79, 0.41))
+            self.push_activity(self.activity)
+            self.area.queue_draw()
+            if self.timer_remaining == 0:
+                self.timer_running = False
+                self.activity = Activity("✓", "Timer finished", "Time is up", (0.44, 0.88, 0.63))
+                self.set_expanded(True)
+        return True
+
+    def show_settings(self) -> None:
+        dialog = Gtk.Dialog(title="Dynamic Island Settings", transient_for=self.window, flags=0)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL); dialog.add_button("Save", Gtk.ResponseType.OK)
+        box = dialog.get_content_area(); box.set_spacing(10); box.set_margin_top(16); box.set_margin_bottom(16); box.set_margin_start(16); box.set_margin_end(16)
+        theme = Gtk.ComboBoxText(); theme.append("dark", "Dark"); theme.append("light", "Light"); theme.set_active_id(self.settings.get("theme", "dark"))
+        box.pack_start(Gtk.Label(label="Theme", xalign=0), False, False, 0); box.pack_start(theme, False, False, 0)
+        dialog.show_all()
+        if dialog.run() == Gtk.ResponseType.OK:
+            self.settings["theme"] = theme.get_active_id() or "dark"; save_settings(self.settings); self.area.queue_draw()
+        dialog.destroy()
+
     def on_key(self, _widget: Gtk.Widget, event: Gdk.EventKey) -> bool:
         key = Gdk.keyval_name(event.keyval)
         if key in ("Escape",):
             self.set_expanded(False)
         elif key in ("space", "Return"):
-            self.activity_index = (self.activity_index + 1) % len(ACTIVITIES)
-            self.activity = ACTIVITIES[self.activity_index]
+            if self.activity_queue:
+                self.activity = self.activity_queue[(self.activity_index + 1) % len(self.activity_queue)]
+                self.activity_index += 1
+            else:
+                self.activity_index = (self.activity_index + 1) % len(ACTIVITIES)
+                self.activity = ACTIVITIES[self.activity_index]
             self.set_expanded(True)
+        elif key == "t":
+            self.timer_remaining = 300; self.timer_running = True; self.set_expanded(True)
+        elif key == "c":
+            self.timer_remaining = 0; self.timer_running = False; self.set_expanded(False)
+        elif key == "s":
+            self.show_settings()
         elif key == "n":
             self.activity = Activity("✓", "Download complete", "File is ready", (0.44, 0.88, 0.63))
             self.set_expanded(True)
             GLib.timeout_add(2200, self.auto_collapse)
+        elif key == "b":
+            self.activity = Activity("•", "Notifications", f"{self.unread_notifications} unread", (0.44, 0.88, 0.63))
+            self.unread_notifications = 0
+            self.set_expanded(True)
         elif key == "q":
             Gtk.main_quit()
         return True
