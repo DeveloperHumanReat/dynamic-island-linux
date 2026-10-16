@@ -18,6 +18,7 @@ from notification_watcher import NotificationWatcher
 from settings import load as load_settings, save as save_settings
 from system_monitor import SystemMonitor
 from file_monitor import DownloadMonitor
+from instance_lock import SingleInstance
 
 
 @dataclass
@@ -41,6 +42,7 @@ class WaylandIsland:
     EXPANDED = (360, 142)
 
     def __init__(self) -> None:
+        self.instance_lock = SingleInstance()
         self.expanded = False
         self.activity_index = 0
         self.activity = ACTIVITIES[0]
@@ -188,6 +190,9 @@ class WaylandIsland:
         return True
 
     def on_click(self, _widget: Gtk.Widget, _event: Gdk.EventButton) -> bool:
+        if _event.button == 3:
+            self.open_control_panel()
+            return True
         if self.expanded and _event.y >= 94:
             if 76 <= _event.x <= 122:
                 if self.media: self.media.previous()
@@ -200,6 +205,13 @@ class WaylandIsland:
                 return True
         self.set_expanded(not self.expanded)
         return True
+
+    def open_control_panel(self) -> None:
+        panel = Path(__file__).with_name("control_panel.py")
+        if panel.exists():
+            subprocess.Popen([sys.executable, str(panel)])
+        else:
+            subprocess.Popen([str(Path.home() / ".local/bin/dynamic-island-linux-control")])
 
     def on_media_update(self, data: dict) -> None:
         if not data.get("active"):
@@ -310,11 +322,7 @@ class WaylandIsland:
         elif key == "s":
             self.show_settings()
         elif key == "p":
-            panel = Path(__file__).with_name("control_panel.py")
-            if panel.exists():
-                subprocess.Popen([sys.executable, str(panel)])
-            else:
-                subprocess.Popen([str(Path.home() / ".local/bin/dynamic-island-linux-control")])
+            self.open_control_panel()
         elif key == "n":
             self.activity = Activity("✓", "Download complete", "File is ready", (0.44, 0.88, 0.63))
             self.set_expanded(True)

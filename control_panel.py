@@ -5,7 +5,8 @@ from __future__ import annotations
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gtk, Gdk
 from settings import load, save
 
 
@@ -14,6 +15,7 @@ class ControlPanel(Gtk.Window):
         super().__init__(title="Dynamic Island — Control Panel")
         self.set_default_size(620, 620)
         self.set_border_width(22)
+        self.connect("key-press-event", self.on_key)
         self.settings = load()
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.add(root)
@@ -36,6 +38,14 @@ class ControlPanel(Gtk.Window):
         actions.pack_end(save_button, False, False, 0)
         close = Gtk.Button(label="Close"); close.connect("clicked", lambda *_: self.destroy())
         actions.pack_end(close, False, False, 0)
+
+    def on_key(self, _widget, event) -> bool:
+        key = Gdk.keyval_name(event.keyval)
+        ctrl_w = key in ("w", "W") and bool(event.state & Gdk.ModifierType.CONTROL_MASK)
+        if key == "Escape" or ctrl_w:
+            self.destroy()
+            return True
+        return False
 
     def row(self, box: Gtk.Box, label: str, key: str) -> Gtk.Switch:
         line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)

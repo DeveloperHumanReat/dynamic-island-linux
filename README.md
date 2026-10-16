@@ -39,9 +39,21 @@ Wayland oturumunda `./install.sh` çalıştırın. Kurucu PyGObject, GTK3, gtk-l
 - `B`: okunmamış bildirim sayısını göster ve temizle
 - `S`: tema ayarlarını aç
 - `P`: tam kontrol panelini aç
+- Sağ tık: kontrol panelini aç
 - `N`: demo bildirim olayı
 - `Esc`: Compact görünüm
 - `Q`: kapat
+
+## Süreç yönetimi
+
+Uygulama aynı anda yalnızca bir ada kopyasına izin verir. Güncelleme veya elle durdurma için:
+
+```bash
+~/.local/bin/dynamic-island-linux --stop
+~/.local/bin/dynamic-island-linux --restart
+```
+
+Kontrol panelinde **Close**, `Esc` ve `Ctrl+W` paneli kapatır. Ada ve panel logları `~/.local/state/dynamic-island-linux/` altındadır.
 
 Başlatma hataları:
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
+pkill -u "$(id -u)" -f 'wayland_app\.py' 2>/dev/null || true
+pkill -u "$(id -u)" -f 'control_panel\.py' 2>/dev/null || true
 rm -rf "$HOME/.local/share/dynamic-island-linux"
 rm -f "$HOME/.local/bin/dynamic-island-linux"
 rm -f "$HOME/.local/bin/dynamic-island-linux-control"

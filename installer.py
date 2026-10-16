@@ -121,15 +121,18 @@ class Installer(Gtk.Window):
 
     def install(self) -> None:
         try:
+            for pattern in (r"/dynamic-island-linux/(main\.py|wayland_app\.py)", r"wayland_app\.py"):
+                subprocess.run(["pkill", "-u", str(os.getuid()), "-f", pattern], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             INSTALL_DIR.mkdir(parents=True, exist_ok=True); BIN_DIR.mkdir(parents=True, exist_ok=True); DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
-            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "system_monitor.py", "file_monitor.py", "settings.py", "control_panel.py", "run.sh", "README.md", "dynamic-island-linux.svg"):
+            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "system_monitor.py", "file_monitor.py", "settings.py", "control_panel.py", "control_panel.sh", "instance_lock.py", "run.sh", "README.md", "dynamic-island-linux.svg"):
                 shutil.copy2(SOURCE_DIR / name, INSTALL_DIR / name)
             (INSTALL_DIR / "run.sh").chmod(0o755)
+            (INSTALL_DIR / "control_panel.sh").chmod(0o755)
             GLib.idle_add(self.set_status, "Dosyalar kuruldu…", 0.45)
             launcher = BIN_DIR / APP_ID
             launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'run.sh'} \"$@\"\n"); launcher.chmod(0o755)
             panel_launcher = BIN_DIR / f"{APP_ID}-control"
-            panel_launcher.write_text(f"#!/bin/sh\nexec {sys.executable} {INSTALL_DIR / 'control_panel.py'} \"$@\"\n"); panel_launcher.chmod(0o755)
+            panel_launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'control_panel.sh'} \"$@\"\n"); panel_launcher.chmod(0o755)
             icon_dir = Path.home() / ".local" / "share" / "icons" / "hicolor" / "scalable" / "apps"
             icon_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(SOURCE_DIR / "dynamic-island-linux.svg", icon_dir / f"{APP_ID}.svg")
