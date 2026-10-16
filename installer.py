@@ -36,18 +36,18 @@ def install_wayland_dependencies() -> None:
     arch = {"arch", "manjaro", "endeavouros", "cachyos", "garuda", "artix"}
     if distro in {"ubuntu", "debian", "linuxmint", "pop", "elementary", "zorin"}:
         root_command(["apt-get", "update"])
-        root_command(["apt-get", "install", "-y", "python3-gi", "gir1.2-gtk-3.0", "gir1.2-gtklayershell-0.1", "libgtk-layer-shell0"])
+        root_command(["apt-get", "install", "-y", "python3-gi", "gir1.2-gtk-3.0", "gir1.2-gtklayershell-0.1", "libgtk-layer-shell0", "dbus"])
     elif distro in {"fedora", "rhel", "centos", "rocky", "almalinux"}:
         manager = "dnf" if shutil.which("dnf") else "yum"
-        root_command([manager, "install", "-y", "python3-gobject", "gtk3", "gtk-layer-shell"])
+        root_command([manager, "install", "-y", "python3-gobject", "gtk3", "gtk-layer-shell", "dbus"])
     elif distro in arch:
-        root_command(["pacman", "-Sy", "--needed", "--noconfirm", "python-gobject", "gtk3", "gtk-layer-shell"])
+        root_command(["pacman", "-Sy", "--needed", "--noconfirm", "python-gobject", "gtk3", "gtk-layer-shell", "dbus"])
     elif distro.startswith("opensuse") or distro == "suse":
-        root_command(["zypper", "--non-interactive", "install", "python3-gobject", "gtk3", "gtk-layer-shell"])
+        root_command(["zypper", "--non-interactive", "install", "python3-gobject", "gtk3", "gtk-layer-shell", "dbus-1"])
     elif distro == "alpine":
-        root_command(["apk", "add", "py3-gobject3", "gtk+3.0", "gtk-layer-shell"])
+        root_command(["apk", "add", "py3-gobject3", "gtk+3.0", "gtk-layer-shell", "dbus"])
     elif distro == "void":
-        root_command(["xbps-install", "-Sy", "python3-gobject", "gtk+3", "gtk-layer-shell"])
+        root_command(["xbps-install", "-Sy", "python3-gobject", "gtk+3", "gtk-layer-shell", "dbus"])
     else:
         raise RuntimeError(f"Desteklenmeyen dağıtım: {distro}. GTK3, PyGObject ve gtk-layer-shell paketlerini kurun.")
 
@@ -121,7 +121,7 @@ class Installer(Gtk.Window):
     def install(self) -> None:
         try:
             INSTALL_DIR.mkdir(parents=True, exist_ok=True); BIN_DIR.mkdir(parents=True, exist_ok=True); DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
-            for name in ("main.py", "wayland_app.py", "run.sh", "README.md"):
+            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "run.sh", "README.md"):
                 shutil.copy2(SOURCE_DIR / name, INSTALL_DIR / name)
             (INSTALL_DIR / "run.sh").chmod(0o755)
             GLib.idle_add(self.set_status, "Dosyalar kuruldu…", 0.45)

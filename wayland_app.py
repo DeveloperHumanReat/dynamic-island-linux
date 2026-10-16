@@ -10,6 +10,8 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gtk, Gdk, GLib, GtkLayerShell, cairo
+from media import MediaController
+from notification_watcher import NotificationWatcher
 
 
 @dataclass
@@ -39,6 +41,8 @@ class WaylandIsland:
         self.width, self.height = self.COMPACT
         self.target_width, self.target_height = self.COMPACT
         self.animating = False
+        self.media_active = False
+        self.notification_timeout = 0
 
         self.window = Gtk.Window()
         self.window.set_decorated(False)
@@ -62,6 +66,8 @@ class WaylandIsland:
         self.window.add(self.area)
         self.window.set_default_size(*self.COMPACT)
         self.window.show_all()
+        self.media = MediaController(self.on_media_update)
+        self.notifications = NotificationWatcher(self.on_notification)
         GLib.timeout_add(4200, self.auto_collapse)
 
     @staticmethod
@@ -127,8 +133,43 @@ class WaylandIsland:
         return True
 
     def on_click(self, _widget: Gtk.Widget, _event: Gdk.EventButton) -> bool:
+        if self.expanded and _event.y >= 94:
+            if 76 <= _event.x <= 122:
+                self.media.previous()
+                return True
+            if 122 <= _event.x <= 170:
+                self.media.play_pause()
+                return True
+            if 170 <= _event.x <= 220:
+                self.media.next()
+                return True
         self.set_expanded(not self.expanded)
         return True
+
+    def on_media_update(self, data: dict) -> None:
+        if not data.get("active"):
+            if self.media_active:
+                self.media_active = False
+                self.activity = ACTIVITIES[0]
+                self.area.queue_draw()
+            return
+        self.media_active = True
+        title = str(data.get("title", "Music"))[:32]
+        artist = str(data.get("artist", ""))[:36]
+        self.activity = Activity("♪", title, artist or "Music", (0.61, 0.55, 1.0))
+        self.area.queue_draw()
+
+    def on_notification(self, app: str, summary: str, body: str) -> None:
+        def show() -> bool:
+            title = (summary or app or "Notification")[:42]
+            detail = (body or app or "New notification").replace("\n", " ")[:58]
+            self.activity = Activity("•", title, detail, (0.44, 0.88, 0.63))
+            self.set_expanded(True)
+            if self.notification_timeout:
+                GLib.source_remove(self.notification_timeout)
+            self.notification_timeout = GLib.timeout_add(4200, self.auto_collapse)
+            return False
+        GLib.idle_add(show)
 
     def on_key(self, _widget: Gtk.Widget, event: Gdk.EventKey) -> bool:
         key = Gdk.keyval_name(event.keyval)

@@ -1,6 +1,6 @@
 # Dynamic Island for Linux
 
-Bu sürüm yalnızca **Wayland** için geliştirilir. X11, XWayland, Tkinter ve X11 fallback kodu projeden çıkarılmıştır. Üstteki arayüz `GTK3 + gtk-layer-shell` kullanarak Wayland compositor’ın onayladığı `overlay` katmanında çalışır.
+Bu sürüm yalnızca **Wayland** için geliştirilir. X11, XWayland ve Tkinter projeden çıkarılmıştır. Üstteki arayüz `GTK3 + gtk-layer-shell` ile Wayland compositor’ın onayladığı overlay katmanında çalışır.
 
 ## Grafik kurulum
 
@@ -11,9 +11,21 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Kurulum betiği önce Wayland oturumunu kontrol eder, sonra grafik GTK kurucuyu açar. Kurucu gerekli PyGObject, GTK3 ve gtk-layer-shell paketlerini dağıtımın paket yöneticisiyle otomatik kurar. Debian/Ubuntu, Fedora/RHEL, Arch/Manjaro/CachyOS/Garuda/EndeavourOS/Artix, openSUSE, Alpine ve Void aileleri desteklenir.
+Kurucu; PyGObject, GTK3, gtk-layer-shell ve D-Bus araçlarını dağıtımın paket yöneticisiyle otomatik kurar. Debian/Ubuntu, Fedora/RHEL, Arch/Manjaro/CachyOS/Garuda/EndeavourOS/Artix, openSUSE, Alpine ve Void aileleri desteklenir.
 
-Kurulum uygulamayı `~/.local/share/dynamic-island-linux` altına, başlatıcıyı `~/.local/bin/dynamic-island-linux` altına ve uygulama menüsü girdisini `~/.local/share/applications` altına yerleştirir. Uygulama dosyalarını kopyalamak için root gerekmez; yalnızca eksik sistem paketlerini kurarken sudo istenir.
+## Müzik çalar entegrasyonu
+
+Uygulama oturum D-Bus’ındaki **MPRIS2** oyuncularını otomatik bulur. Spotify, VLC, Elisa, Amberol, Firefox medya oturumu ve MPRIS destekleyen diğer oynatıcılar çalışırken Dynamic Island’da parça adı ve sanatçı görünür. Aktivite, oyuncunun `PlaybackStatus` ve `Metadata` alanlarını yaklaşık saniyede bir günceller.
+
+Expanded görünümdeki kontroller MPRIS üzerinden çalışır:
+
+- Sol düğme: önceki parça
+- Orta düğme: oynat/duraklat
+- Sağ düğme: sonraki parça
+
+## Bildirim desteği
+
+Bildirim watcher, oturum D-Bus’ındaki `org.freedesktop.Notifications.Notify` çağrılarını izler ve mevcut bildirim daemon’ını değiştirmez. Yeni bildirim geldiğinde başlık ve gövde Dynamic Island’da kısa süreli Expanded görünümde gösterilir. `dbus-monitor` bulunamazsa müzik entegrasyonu çalışmaya devam eder ve watcher açık bir log mesajıyla devre dışı kalır.
 
 ## Çalıştırma
 
@@ -23,20 +35,18 @@ Kurulumdan sonra uygulamalar menüsünden **Dynamic Island for Linux** seçin ve
 ~/.local/bin/dynamic-island-linux
 ```
 
-Uygulama başlamazsa hata ayrıntısı burada bulunur:
+Başlatma hataları:
 
 ```bash
 cat ~/.local/state/dynamic-island-linux/launcher.log
 ```
 
-Wayland oturumu yoksa launcher açıkça hata verir. X11 desteği bu sürümde yoktur.
+Wayland ve `wlr-layer-shell` destekli compositor gereklidir. X11 desteği yoktur.
 
 ## Kontroller
 
-Tıklama Compact ve Expanded görünümler arasında geçiş yapar. Space veya Enter demo aktivitelerini değiştirir. N yeni bir indirme tamamlandı olayını gösterir. Esc Compact görünüme döner. Q uygulamayı kapatır.
+Tıklama Compact ve Expanded görünümler arasında geçiş yapar. Expanded görünümde medya düğmeleri MPRIS komutları gönderir. Space veya Enter demo aktivitelerini değiştirir. N demo bildirim olayı gösterir. Esc Compact görünüme döner. Q uygulamayı kapatır.
 
 ## Mimari
 
-`main.py` Wayland giriş noktasıdır. `wayland_app.py` GTK layer-shell yüzeyini, animasyonları ve Dynamic Island arayüzünü içerir. `installer.py` de GTK ile yazılmıştır; Tkinter kullanılmaz. `run.sh` çalışma dizinini ayarlar, Wayland kontrolü yapar ve başlatma hatalarını loglar.
-
-Wayland compositor’ın `wlr-layer-shell` protokolünü desteklemesi gerekir. Desteklenmeyen compositor’larda bu uygulama pencereyi başka bir protokole gizlice düşürmez; açık hata verir. Bu davranış X11’e sessizce dönmekten daha güvenlidir.
+`main.py` Wayland giriş noktasıdır. `wayland_app.py` GTK layer-shell arayüzünü içerir. `media.py` MPRIS2 D-Bus istemcisidir. `notification_watcher.py` mevcut bildirim daemon’ını bozmadan Notify çağrılarını izler. `installer.py` GTK grafik kurucusudur. `run.sh` Wayland kontrolü yapar ve başlatma hatalarını loglar.
