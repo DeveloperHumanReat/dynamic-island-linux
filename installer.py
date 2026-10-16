@@ -112,6 +112,7 @@ class Installer(tk.Tk):
             BIN_DIR.mkdir(parents=True, exist_ok=True)
             DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
             shutil.copy2(SOURCE_DIR / "app.py", INSTALL_DIR / "app.py")
+            shutil.copy2(SOURCE_DIR / "wayland_app.py", INSTALL_DIR / "wayland_app.py")
             shutil.copy2(SOURCE_DIR / "README.md", INSTALL_DIR / "README.md")
             self.write_log(f"Uygulama dizini: {INSTALL_DIR}")
 

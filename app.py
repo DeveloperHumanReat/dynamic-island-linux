@@ -14,6 +14,7 @@ OverlayWindow with a layer-shell implementation.
 from __future__ import annotations
 
 import math
+import os
 import tkinter as tk
 from dataclasses import dataclass
 from typing import Callable
@@ -204,6 +205,16 @@ class DynamicIsland:
 
 
 def main() -> None:
+    # Wayland needs a compositor-approved layer-shell surface. Keep the
+    # existing Tk/X11 implementation as a fallback for X11 and unsupported
+    # Wayland compositors.
+    if os.environ.get("WAYLAND_DISPLAY"):
+        try:
+            from wayland_app import main as wayland_main
+            wayland_main()
+            return
+        except Exception as exc:
+            print(f"Wayland backend unavailable, falling back to X11 backend: {exc}")
     root = tk.Tk()
     island = DynamicIsland(root)
     # Demo shortcut: press N to simulate a fresh system event.
