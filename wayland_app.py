@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import math
 import subprocess
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import gi
 
@@ -82,9 +84,28 @@ class WaylandIsland:
 
         self.area = Gtk.DrawingArea()
         self.area.connect("draw", self.draw)
-        self.window.add(self.area)
+        self.overlay = Gtk.Overlay()
+        self.overlay.add(self.area)
+        css = Gtk.CssProvider()
+        css.load_from_data(b"label { color: #f2f1ff; font-weight: 600; }")
+        Gtk.StyleContext.add_provider_for_screen(self.window.get_screen(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.icon_label = Gtk.Label(label="♪")
+        self.icon_label.set_halign(Gtk.Align.START); self.icon_label.set_valign(Gtk.Align.START)
+        self.icon_label.set_margin_start(18); self.icon_label.set_margin_top(12)
+        self.overlay.add_overlay(self.icon_label)
+        self.title_label = Gtk.Label(label="Dynamic Island")
+        self.title_label.set_halign(Gtk.Align.START); self.title_label.set_valign(Gtk.Align.START)
+        self.title_label.set_margin_start(50); self.title_label.set_margin_top(10)
+        self.overlay.add_overlay(self.title_label)
+        self.detail_label = Gtk.Label(label="Ready")
+        self.detail_label.set_halign(Gtk.Align.START); self.detail_label.set_valign(Gtk.Align.START)
+        self.detail_label.set_margin_start(50); self.detail_label.set_margin_top(30)
+        self.detail_label.set_no_show_all(True)
+        self.overlay.add_overlay(self.detail_label)
+        self.window.add(self.overlay)
         self.window.set_default_size(*self.COMPACT)
         self.window.show_all()
+        self.detail_label.hide()
         self.media = MediaController(self.on_media_update) if self.settings.get("enable_media", True) else None
         self.notifications = NotificationWatcher(self.on_notification) if self.settings.get("enable_notifications", True) else None
         self.system = SystemMonitor(self.on_system_update) if self.settings.get("enable_system", True) else None
@@ -126,10 +147,18 @@ class WaylandIsland:
         ctx.fill()
 
         a = self.activity
-        self.text(ctx, a.icon, 18 if not self.expanded else 24, 31 if not self.expanded else 44,
-                  14 if not self.expanded else 20, a.accent, True)
-        self.text(ctx, a.title, 50 if not self.expanded else 68, 30 if not self.expanded else 32,
-                  11 if not self.expanded else 13, (0.95, 0.95, 0.98), True)
+        self.icon_label.set_text(a.icon)
+        self.title_label.set_text(a.title)
+        self.detail_label.set_text(a.detail)
+        if self.expanded:
+            self.icon_label.set_margin_start(24); self.icon_label.set_margin_top(22)
+            self.title_label.set_margin_start(68); self.title_label.set_margin_top(15)
+            self.detail_label.set_margin_start(68); self.detail_label.set_margin_top(38)
+            self.detail_label.show()
+        else:
+            self.icon_label.set_margin_start(18); self.icon_label.set_margin_top(12)
+            self.title_label.set_margin_start(50); self.title_label.set_margin_top(10)
+            self.detail_label.hide()
 
         if not self.expanded:
             if a.progress is not None:
@@ -144,7 +173,6 @@ class WaylandIsland:
                 ctx.fill()
             return True
 
-        self.text(ctx, a.detail, 68, 53, 10, (0.65, 0.65, 0.71))
         if a.progress is not None:
             ctx.set_source_rgb(0.16, 0.16, 0.20)
             self.rounded_rectangle(ctx, 22, 78, w - 44, 5, 3)
@@ -282,7 +310,11 @@ class WaylandIsland:
         elif key == "s":
             self.show_settings()
         elif key == "p":
-            subprocess.Popen([str(__import__('pathlib').Path.home() / ".local/bin/dynamic-island-linux-control")])
+            panel = Path(__file__).with_name("control_panel.py")
+            if panel.exists():
+                subprocess.Popen([sys.executable, str(panel)])
+            else:
+                subprocess.Popen([str(Path.home() / ".local/bin/dynamic-island-linux-control")])
         elif key == "n":
             self.activity = Activity("✓", "Download complete", "File is ready", (0.44, 0.88, 0.63))
             self.set_expanded(True)
