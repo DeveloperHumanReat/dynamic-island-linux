@@ -11,7 +11,9 @@ chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh`, Python 3 ve Tkinter bileşenini kontrol eder. Tkinter eksikse dağıtımı algılayıp uygun paket yöneticisiyle otomatik kurar. Desteklenen paket yöneticileri Debian/Ubuntu (`apt`), Fedora/RHEL (`dnf` veya `yum`), Arch/Manjaro (`pacman`), openSUSE (`zypper`), Alpine (`apk`) ve Void (`xbps`) aileleridir. Wayland backend’i için PyGObject, GTK3 ve `gtk-layer-shell` bağımlılıkları da aynı akışta otomatik kurulur. Ardından grafik kurucu açılır.
+`install.sh`, Python 3 ve Tkinter bileşenini kontrol eder. Tkinter eksikse dağıtımı algılayıp uygun paket yöneticisiyle otomatik kurar. Desteklenen paket yöneticileri Debian/Ubuntu (`apt`), Fedora/RHEL (`dnf` veya `yum`), Arch/Manjaro/CachyOS/Garuda/EndeavourOS (`pacman`), openSUSE (`zypper`), Alpine (`apk`) ve Void (`xbps`) aileleridir. Wayland backend’i için PyGObject, GTK3 ve `gtk-layer-shell` bağımlılıkları da aynı akışta otomatik kurulur. Ardından grafik kurucu açılır.
+
+`installer.py` de artık doğrudan çalıştırılabilir. Tkinter eksikse dosyanın en başında bunu algılar, CachyOS dahil dağıtımı eşleştirir, `sudo pacman -S tk` komutunu otomatik çalıştırır ve kendisini yeniden başlatır. Böylece kullanıcı önce elle paket aramak zorunda kalmaz.
 
 Grafik kurucu uygulamayı kullanıcı hesabına `~/.local/share/dynamic-island-linux` altına, başlatıcıyı `~/.local/bin` altına ve uygulama menüsü girdisini `~/.local/share/applications` altına yazar. Bu nedenle uygulama dosyalarını kopyalamak için root gerekmez; yalnızca eksik sistem paketini kurarken sudo yetkisi istenir.
 

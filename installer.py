@@ -13,8 +13,64 @@ import shutil
 import subprocess
 import sys
 import threading
-import tkinter as tk
 from pathlib import Path
+
+
+def _distro_id() -> str:
+    try:
+        for line in Path("/etc/os-release").read_text().splitlines():
+            if line.startswith("ID="):
+                return line.split("=", 1)[1].strip().strip('"').lower()
+    except OSError:
+        pass
+    return "linux"
+
+
+def _run_as_root(command: list[str]) -> None:
+    if os.geteuid() == 0:
+        subprocess.run(command, check=True)
+        return
+    sudo = shutil.which("sudo")
+    if not sudo:
+        raise RuntimeError("Eksik grafik bağımlılığı kurulamadı: sudo bulunamadı.")
+    subprocess.run([sudo, *command], check=True)
+
+
+def _install_python_gui_dependencies() -> None:
+    distro = _distro_id()
+    arch_family = {"cachyos", "arch", "manjaro", "endeavouros", "garuda", "artix"}
+    if distro in {"ubuntu", "debian", "linuxmint", "pop", "elementary", "zorin"}:
+        _run_as_root(["apt-get", "update"])
+        _run_as_root(["apt-get", "install", "-y", "python3-tk"])
+    elif distro in {"fedora", "rhel", "centos", "rocky", "almalinux"}:
+        manager = "dnf" if shutil.which("dnf") else "yum"
+        _run_as_root([manager, "install", "-y", "python3-tkinter"])
+    elif distro in arch_family:
+        _run_as_root(["pacman", "-Sy", "--needed", "--noconfirm", "tk"])
+    elif distro.startswith("opensuse") or distro == "suse":
+        _run_as_root(["zypper", "--non-interactive", "install", "python3-tk"])
+    elif distro == "alpine":
+        _run_as_root(["apk", "add", "python3-tkinter"])
+    elif distro == "void":
+        _run_as_root(["xbps-install", "-Sy", "python3-tkinter"])
+    else:
+        raise RuntimeError(
+            f"{distro} dağıtımında Python GUI bağımlılığı otomatik eşleştirilemedi."
+        )
+
+
+def _ensure_tkinter() -> None:
+    try:
+        import tkinter  # noqa: F401
+    except (ImportError, ModuleNotFoundError) as exc:
+        print(f"Tkinter eksik ({exc}); grafik bağımlılığı otomatik kuruluyor…")
+        _install_python_gui_dependencies()
+        os.execv(sys.executable, [sys.executable, __file__, *sys.argv[1:]])
+
+
+_ensure_tkinter()
+
+import tkinter as tk
 from tkinter import messagebox, ttk
 
 APP_NAME = "Dynamic Island for Linux"

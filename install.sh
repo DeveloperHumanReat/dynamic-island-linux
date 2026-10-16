@@ -28,7 +28,7 @@ if ! "$PYTHON" -c 'import tkinter' >/dev/null 2>&1; then
     fedora|rhel|centos|rocky|almalinux)
       if command -v dnf >/dev/null 2>&1; then sudo dnf install -y python3-tkinter; else sudo yum install -y tkinter; fi
       ;;
-    arch|manjaro|endeavouros)
+    arch|manjaro|endeavouros|cachyos|garuda|artix)
       sudo pacman -Sy --needed --noconfirm tk
       ;;
     opensuse*|suse)
@@ -69,7 +69,7 @@ case "$DISTRO_ID" in
       sudo yum install -y python3-gobject gtk3 gtk-layer-shell
     fi
     ;;
-  arch|manjaro|endeavouros)
+  arch|manjaro|endeavouros|cachyos|garuda|artix)
     sudo pacman -Sy --needed --noconfirm python-gobject gtk3 gtk-layer-shell
     ;;
   opensuse*|suse)
