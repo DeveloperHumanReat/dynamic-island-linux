@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Graphical installer for Dynamic Island for Linux.
-
-The bootstrap shell script installs tkinter only when the current Python lacks
-it. This GUI then performs a user-local installation, so no root is needed for
-copying the application itself.
-"""
+"""Wayland-only GTK installer with automatic distro dependency setup."""
 from __future__ import annotations
 
 import os
@@ -16,7 +11,7 @@ import threading
 from pathlib import Path
 
 
-def _distro_id() -> str:
+def distro_id() -> str:
     try:
         for line in Path("/etc/os-release").read_text().splitlines():
             if line.startswith("ID="):
@@ -26,182 +21,130 @@ def _distro_id() -> str:
     return "linux"
 
 
-def _run_as_root(command: list[str]) -> None:
+def root_command(command: list[str]) -> None:
     if os.geteuid() == 0:
         subprocess.run(command, check=True)
         return
     sudo = shutil.which("sudo")
     if not sudo:
-        raise RuntimeError("Eksik grafik bağımlılığı kurulamadı: sudo bulunamadı.")
+        raise RuntimeError("Eksik Wayland bağımlılıkları için sudo bulunamadı.")
     subprocess.run([sudo, *command], check=True)
 
 
-def _install_python_gui_dependencies() -> None:
-    distro = _distro_id()
-    arch_family = {"cachyos", "arch", "manjaro", "endeavouros", "garuda", "artix"}
+def install_wayland_dependencies() -> None:
+    distro = distro_id()
+    arch = {"arch", "manjaro", "endeavouros", "cachyos", "garuda", "artix"}
     if distro in {"ubuntu", "debian", "linuxmint", "pop", "elementary", "zorin"}:
-        _run_as_root(["apt-get", "update"])
-        _run_as_root(["apt-get", "install", "-y", "python3-tk"])
+        root_command(["apt-get", "update"])
+        root_command(["apt-get", "install", "-y", "python3-gi", "gir1.2-gtk-3.0", "gir1.2-gtklayershell-0.1", "libgtk-layer-shell0"])
     elif distro in {"fedora", "rhel", "centos", "rocky", "almalinux"}:
         manager = "dnf" if shutil.which("dnf") else "yum"
-        _run_as_root([manager, "install", "-y", "python3-tkinter"])
-    elif distro in arch_family:
-        _run_as_root(["pacman", "-Sy", "--needed", "--noconfirm", "tk"])
+        root_command([manager, "install", "-y", "python3-gobject", "gtk3", "gtk-layer-shell"])
+    elif distro in arch:
+        root_command(["pacman", "-Sy", "--needed", "--noconfirm", "python-gobject", "gtk3", "gtk-layer-shell"])
     elif distro.startswith("opensuse") or distro == "suse":
-        _run_as_root(["zypper", "--non-interactive", "install", "python3-tk"])
+        root_command(["zypper", "--non-interactive", "install", "python3-gobject", "gtk3", "gtk-layer-shell"])
     elif distro == "alpine":
-        _run_as_root(["apk", "add", "python3-tkinter"])
+        root_command(["apk", "add", "py3-gobject3", "gtk+3.0", "gtk-layer-shell"])
     elif distro == "void":
-        _run_as_root(["xbps-install", "-Sy", "python3-tkinter"])
+        root_command(["xbps-install", "-Sy", "python3-gobject", "gtk+3", "gtk-layer-shell"])
     else:
-        raise RuntimeError(
-            f"{distro} dağıtımında Python GUI bağımlılığı otomatik eşleştirilemedi."
-        )
+        raise RuntimeError(f"Desteklenmeyen dağıtım: {distro}. GTK3, PyGObject ve gtk-layer-shell paketlerini kurun.")
 
 
-def _ensure_tkinter() -> None:
+def ensure_gtk() -> None:
     try:
-        import tkinter  # noqa: F401
-    except (ImportError, ModuleNotFoundError) as exc:
-        print(f"Tkinter eksik ({exc}); grafik bağımlılığı otomatik kuruluyor…")
-        _install_python_gui_dependencies()
+        import gi  # noqa: F401
+    except (ImportError, ModuleNotFoundError):
+        print("GTK/PyGObject eksik; Wayland bağımlılıkları otomatik kuruluyor…")
+        install_wayland_dependencies()
         os.execv(sys.executable, [sys.executable, __file__, *sys.argv[1:]])
 
 
-_ensure_tkinter()
+ensure_gtk()
+import gi
 
-import tkinter as tk
-from tkinter import messagebox, ttk
+gi.require_version("Gtk", "3.0")
+from gi.repository import GLib, Gtk
 
-APP_NAME = "Dynamic Island for Linux"
 APP_ID = "dynamic-island-linux"
+APP_NAME = "Dynamic Island for Linux"
 SOURCE_DIR = Path(__file__).resolve().parent
 INSTALL_DIR = Path.home() / ".local" / "share" / APP_ID
 BIN_DIR = Path.home() / ".local" / "bin"
 DESKTOP_DIR = Path.home() / ".local" / "share" / "applications"
 
 
-def distro_info() -> tuple[str, str]:
-    data: dict[str, str] = {}
-    try:
-        for line in Path("/etc/os-release").read_text().splitlines():
-            if "=" in line:
-                key, value = line.split("=", 1)
-                data[key] = value.strip().strip('"')
-    except OSError:
-        pass
-    return data.get("ID", "linux"), data.get("PRETTY_NAME", platform.system())
-
-
-def command_exists(name: str) -> bool:
-    return shutil.which(name) is not None
-
-
-def desktop_entry() -> str:
-    launcher = BIN_DIR / APP_ID
-    return f"""[Desktop Entry]\nType=Application\nName={APP_NAME}\nComment=iOS Dynamic Island inspired Linux overlay\nExec={launcher}\nIcon=preferences-desktop-notification\nTerminal=false\nCategories=Utility;\nStartupNotify=false\n"""
-
-
-class Installer(tk.Tk):
+class Installer(Gtk.Window):
     def __init__(self) -> None:
-        super().__init__()
-        self.title(f"{APP_NAME} — Kurulum")
-        self.geometry("560x440")
-        self.resizable(False, False)
-        self.configure(bg="#f4f4f7")
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        outer = tk.Frame(self, bg="#f4f4f7", padx=28, pady=24)
-        outer.pack(fill="both", expand=True)
-        tk.Label(outer, text="Dynamic Island for Linux", bg="#f4f4f7", fg="#111119",
-                 font=("DejaVu Sans", 20, "bold")).pack(anchor="w")
-        tk.Label(outer, text="Tüm dosyaları kullanıcı hesabınıza kurar; uygulama menüsüne ekler.",
-                 bg="#f4f4f7", fg="#5b5b68", font=("DejaVu Sans", 10)).pack(anchor="w", pady=(5, 20))
-
-        distro_id, distro_name = distro_info()
-        self.info = tk.Label(outer, text=f"Algılanan sistem: {distro_name} ({distro_id})",
-                             bg="#e9e9ef", fg="#30303a", anchor="w", padx=12, pady=9,
-                             font=("DejaVu Sans", 10))
-        self.info.pack(fill="x")
-
-        self.status = tk.Label(outer, text="Kuruluma hazır.", bg="#f4f4f7", fg="#30303a",
-                               anchor="w", justify="left", wraplength=500,
-                               font=("DejaVu Sans", 10))
-        self.status.pack(fill="x", pady=(18, 8))
-        self.progress = ttk.Progressbar(outer, mode="determinate", maximum=100)
-        self.progress.pack(fill="x", pady=(0, 20))
-
-        self.log = tk.Text(outer, height=8, width=62, state="disabled", bg="#17171c", fg="#d7d7e2",
-                           relief="flat", padx=10, pady=8, font=("DejaVu Sans Mono", 9))
-        self.log.pack(fill="both", expand=True)
-
-        bottom = tk.Frame(outer, bg="#f4f4f7")
-        bottom.pack(fill="x", pady=(18, 0))
-        self.install_button = tk.Button(bottom, text="Kur", command=self.start_install,
-                                        bg="#111119", fg="white", activebackground="#30303a",
-                                        activeforeground="white", relief="flat", padx=24, pady=10,
-                                        font=("DejaVu Sans", 10, "bold"), cursor="hand2")
-        self.install_button.pack(side="right")
-        tk.Button(bottom, text="Kapat", command=self.destroy, relief="flat", padx=14, pady=10,
-                  bg="#f4f4f7", fg="#44444e", font=("DejaVu Sans", 10)).pack(side="right", padx=(0, 8))
+        super().__init__(title=f"{APP_NAME} — Kurulum")
+        self.set_default_size(600, 470)
+        self.set_resizable(False)
+        self.connect("destroy", Gtk.main_quit)
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        outer.set_margin_top(28); outer.set_margin_bottom(28)
+        outer.set_margin_start(32); outer.set_margin_end(32)
+        self.add(outer)
+        title = Gtk.Label(label=APP_NAME)
+        title.set_xalign(0); title.get_style_context().add_class("title-1")
+        outer.pack_start(title, False, False, 0)
+        subtitle = Gtk.Label(label="Wayland overlay kurulumu — X11 desteği kullanılmaz.")
+        subtitle.set_xalign(0); outer.pack_start(subtitle, False, False, 0)
+        info = Gtk.Label(label=f"Algılanan sistem: {platform.platform()} ({distro_id()})")
+        info.set_xalign(0); outer.pack_start(info, False, False, 6)
+        self.status = Gtk.Label(label="Kuruluma hazır.")
+        self.status.set_xalign(0); outer.pack_start(self.status, False, False, 8)
+        self.progress = Gtk.ProgressBar(); outer.pack_start(self.progress, False, False, 0)
+        self.log = Gtk.TextView(); self.log.set_editable(False); self.log.set_monospace(True)
+        scroll = Gtk.ScrolledWindow(); scroll.set_min_content_height(190); scroll.add(self.log)
+        outer.pack_start(scroll, True, True, 0)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        outer.pack_end(row, False, False, 0)
+        close = Gtk.Button(label="Kapat"); close.connect("clicked", lambda *_: self.destroy())
+        row.pack_end(close, False, False, 0)
+        self.install_button = Gtk.Button(label="Kur")
+        self.install_button.connect("clicked", self.start_install)
+        row.pack_end(self.install_button, False, False, 0)
 
     def write_log(self, text: str) -> None:
-        self.log.configure(state="normal")
-        self.log.insert("end", text.rstrip() + "\n")
-        self.log.see("end")
-        self.log.configure(state="disabled")
+        buffer = self.log.get_buffer()
+        buffer.insert(buffer.get_end_iter(), text.rstrip() + "\n")
 
-    def update_status(self, text: str, progress: int | None = None) -> None:
-        self.status.configure(text=text)
-        if progress is not None:
-            self.progress.configure(value=progress)
+    def set_status(self, text: str, fraction: float | None = None) -> None:
+        self.status.set_text(text)
+        if fraction is not None: self.progress.set_fraction(fraction)
 
-    def start_install(self) -> None:
-        self.install_button.configure(state="disabled")
+    def start_install(self, _button: Gtk.Button) -> None:
+        self.install_button.set_sensitive(False)
         threading.Thread(target=self.install, daemon=True).start()
 
     def install(self) -> None:
         try:
-            self.after(0, lambda: self.update_status("Dosyalar hazırlanıyor…", 20))
-            INSTALL_DIR.mkdir(parents=True, exist_ok=True)
-            BIN_DIR.mkdir(parents=True, exist_ok=True)
-            DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(SOURCE_DIR / "app.py", INSTALL_DIR / "app.py")
-            shutil.copy2(SOURCE_DIR / "wayland_app.py", INSTALL_DIR / "wayland_app.py")
-            shutil.copy2(SOURCE_DIR / "run.sh", INSTALL_DIR / "run.sh")
+            INSTALL_DIR.mkdir(parents=True, exist_ok=True); BIN_DIR.mkdir(parents=True, exist_ok=True); DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
+            for name in ("main.py", "wayland_app.py", "run.sh", "README.md"):
+                shutil.copy2(SOURCE_DIR / name, INSTALL_DIR / name)
             (INSTALL_DIR / "run.sh").chmod(0o755)
-            shutil.copy2(SOURCE_DIR / "README.md", INSTALL_DIR / "README.md")
-            self.write_log(f"Uygulama dizini: {INSTALL_DIR}")
-
+            GLib.idle_add(self.set_status, "Dosyalar kuruldu…", 0.45)
             launcher = BIN_DIR / APP_ID
-            launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'run.sh'} \"$@\"\n")
-            launcher.chmod(0o755)
-            self.after(0, lambda: self.update_status("Başlatıcı oluşturuluyor…", 55))
-            self.write_log(f"Başlatıcı: {launcher}")
-
+            launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'run.sh'} \"$@\"\n"); launcher.chmod(0o755)
             desktop = DESKTOP_DIR / f"{APP_ID}.desktop"
-            desktop.write_text(desktop_entry())
-            desktop.chmod(0o644)
-            self.write_log(f"Uygulama menüsü girdisi: {desktop}")
-            self.after(0, lambda: self.update_status("Uygulama menüsü güncelleniyor…", 80))
-            if command_exists("update-desktop-database"):
-                subprocess.run(["update-desktop-database", str(DESKTOP_DIR)], check=False,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            self.after(0, lambda: self.update_status("Kurulum tamamlandı.", 100))
-            self.after(0, lambda: messagebox.showinfo(
-                "Kurulum tamamlandı", "Dynamic Island kuruldu. Uygulamalar menüsünden açabilir veya terminalde 'dynamic-island-linux' çalıştırabilirsiniz."))
-            self.after(0, lambda: self.install_button.configure(text="Tamamlandı", state="disabled"))
+            desktop.write_text(f"[Desktop Entry]\nType=Application\nName={APP_NAME}\nComment=Wayland Dynamic Island overlay\nExec={launcher}\nTerminal=false\nCategories=Utility;\nStartupNotify=true\n")
+            GLib.idle_add(self.set_status, "Uygulama menüsü güncelleniyor…", 0.8)
+            if shutil.which("update-desktop-database"):
+                subprocess.run(["update-desktop-database", str(DESKTOP_DIR)], check=False)
+            GLib.idle_add(self.write_log, f"Kuruldu: {INSTALL_DIR}")
+            GLib.idle_add(self.set_status, "Kurulum tamamlandı. Uygulamalar menüsünden açabilirsiniz.", 1.0)
+            GLib.idle_add(self.install_button.set_label, "Tamamlandı")
         except Exception as exc:
-            self.write_log(f"HATA: {exc}")
-            self.after(0, lambda: self.update_status("Kurulum başarısız oldu."))
-            self.after(0, lambda: messagebox.showerror("Kurulum hatası", str(exc)))
-            self.after(0, lambda: self.install_button.configure(state="normal"))
+            GLib.idle_add(self.write_log, f"HATA: {exc}")
+            GLib.idle_add(self.set_status, "Kurulum başarısız oldu; ayrıntı logda.")
+            GLib.idle_add(self.install_button.set_sensitive, True)
 
 
 def main() -> None:
-    Installer().mainloop()
+    if not os.environ.get("WAYLAND_DISPLAY"):
+        raise RuntimeError("Bu sürüm yalnızca Wayland oturumlarında çalışır. X11 desteği kaldırıldı.")
+    window = Installer(); window.show_all(); Gtk.main()
 
 
 if __name__ == "__main__":

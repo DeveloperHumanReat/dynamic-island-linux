@@ -1,59 +1,42 @@
 # Dynamic Island for Linux
 
-Bu proje, iOS Dynamic Island davranış modelini Linux masaüstüne taşıyan ilk prototiptir. Üst merkezde kompakt kapsül, genişletilmiş görünüm, aktivite rotasyonu ve geçici olay animasyonu içerir.
+Bu sürüm yalnızca **Wayland** için geliştirilir. X11, XWayland, Tkinter ve X11 fallback kodu projeden çıkarılmıştır. Üstteki arayüz `GTK3 + gtk-layer-shell` kullanarak Wayland compositor’ın onayladığı `overlay` katmanında çalışır.
 
 ## Grafik kurulum
 
-Kurulum dosyasını çalıştırın:
+Wayland oturumunda:
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-`install.sh`, Python 3 ve Tkinter bileşenini kontrol eder. Tkinter eksikse dağıtımı algılayıp uygun paket yöneticisiyle otomatik kurar. Desteklenen paket yöneticileri Debian/Ubuntu (`apt`), Fedora/RHEL (`dnf` veya `yum`), Arch/Manjaro/CachyOS/Garuda/EndeavourOS (`pacman`), openSUSE (`zypper`), Alpine (`apk`) ve Void (`xbps`) aileleridir. Wayland backend’i için PyGObject, GTK3 ve `gtk-layer-shell` bağımlılıkları da aynı akışta otomatik kurulur. Ardından grafik kurucu açılır.
+Kurulum betiği önce Wayland oturumunu kontrol eder, sonra grafik GTK kurucuyu açar. Kurucu gerekli PyGObject, GTK3 ve gtk-layer-shell paketlerini dağıtımın paket yöneticisiyle otomatik kurar. Debian/Ubuntu, Fedora/RHEL, Arch/Manjaro/CachyOS/Garuda/EndeavourOS/Artix, openSUSE, Alpine ve Void aileleri desteklenir.
 
-`installer.py` de artık doğrudan çalıştırılabilir. Tkinter eksikse dosyanın en başında bunu algılar, CachyOS dahil dağıtımı eşleştirir, `sudo pacman -S tk` komutunu otomatik çalıştırır ve kendisini yeniden başlatır. Böylece kullanıcı önce elle paket aramak zorunda kalmaz.
+Kurulum uygulamayı `~/.local/share/dynamic-island-linux` altına, başlatıcıyı `~/.local/bin/dynamic-island-linux` altına ve uygulama menüsü girdisini `~/.local/share/applications` altına yerleştirir. Uygulama dosyalarını kopyalamak için root gerekmez; yalnızca eksik sistem paketlerini kurarken sudo istenir.
 
-Grafik kurucu uygulamayı kullanıcı hesabına `~/.local/share/dynamic-island-linux` altına, hata yakalayan başlatıcıyı `~/.local/bin` altına ve uygulama menüsü girdisini `~/.local/share/applications` altına yazar. Başlatıcı çalışma dizinini doğru ayarlar ve hata olursa `~/.local/state/dynamic-island-linux/launcher.log` dosyasına yazar; masaüstü bildirimi veya grafik hata mesajı göstermeye çalışır. Bu nedenle uygulama dosyalarını kopyalamak için root gerekmez; yalnızca eksik sistem paketini kurarken sudo yetkisi istenir.
+## Çalıştırma
 
-Kaldırmak için:
-
-```bash
-./uninstall.sh
-```
-
-## Uygulamayı çalıştırma
-
-Kurulumdan sonra uygulamalar menüsünden **Dynamic Island for Linux** seçilebilir veya şu komut kullanılabilir:
+Kurulumdan sonra uygulamalar menüsünden **Dynamic Island for Linux** seçin veya:
 
 ```bash
 ~/.local/bin/dynamic-island-linux
 ```
 
-Uygulama görünmüyorsa sessizce kapanmaz; hata ayrıntısı şu logda bulunur:
+Uygulama başlamazsa hata ayrıntısı burada bulunur:
 
 ```bash
 cat ~/.local/state/dynamic-island-linux/launcher.log
 ```
 
-## Prototip kontrolleri
+Wayland oturumu yoksa launcher açıkça hata verir. X11 desteği bu sürümde yoktur.
 
-Tıklama veya Enter Compact ve Expanded görünümler arasında geçiş yapar. Space demo aktivitelerini değiştirir. N yeni bir indirme tamamlandı olayını gösterir. Esc Compact görünüme döner. Ctrl+Q uygulamayı kapatır.
+## Kontroller
 
-## Wayland ve X11 backend’leri
+Tıklama Compact ve Expanded görünümler arasında geçiş yapar. Space veya Enter demo aktivitelerini değiştirir. N yeni bir indirme tamamlandı olayını gösterir. Esc Compact görünüme döner. Q uygulamayı kapatır.
 
-Uygulama `WAYLAND_DISPLAY` değişkenini algıladığında GTK3 + `gtk-layer-shell` backend’ini seçer. Bu backend, uygulamayı Wayland compositor’a bildirilmiş gerçek `overlay` layer-shell yüzeyi olarak üst kenara yerleştirir. `wlr-layer-shell` desteklemeyen compositor’larda uygulama güvenli biçimde X11 backend’ine geri döner; bu durumda oturumun XWayland sağlaması gerekir.
+## Mimari
 
-X11 oturumlarında mevcut Tkinter backend’i kullanılır. Her iki backend aynı Compact, Expanded ve aktivite modeliyle çalışır. Wayland üzerinde pencereyi zorla en üstte tutmaya çalışmak yerine compositor’ın izin verdiği layer-shell protokolü kullanılır.
+`main.py` Wayland giriş noktasıdır. `wayland_app.py` GTK layer-shell yüzeyini, animasyonları ve Dynamic Island arayüzünü içerir. `installer.py` de GTK ile yazılmıştır; Tkinter kullanılmaz. `run.sh` çalışma dizinini ayarlar, Wayland kontrolü yapar ve başlatma hatalarını loglar.
 
-## Dağıtımlar arası uyumluluk planı
-
-Bu sürüm X11 için Python 3/Tkinter, Wayland için Python 3/PyGObject/GTK3/gtk-layer-shell kullanır. Kurucu, bağımlılığı kullanıcıdan tek tek istemek yerine paket yöneticisi üzerinden tek işlemde kurar. Ancak tüm Linux dağıtımlarında aynı paket adı veya aynı compositor protokolü garanti edilemez.
-
-Daha güçlü ürün sürümünde masaüstü bağımsız dağıtım için iki paket hedeflenecek:
-
-1. **Flatpak:** GTK ve sistem bağımlılıklarını runtime içinde sabitler, modern Linux dağıtımlarında en tutarlı kurulum yoludur.
-2. **AppImage:** Tek dosyalık taşınabilir dağıtım sağlar; X11 uyumluluk modunda kolay çalışır.
-
-Wayland desteği için `wlr-layer-shell` tabanlı native backend eklenecek. GNOME gibi `wlr-layer-shell` sunmayan compositor’lar için compositor’a özgü bir adaptör veya masaüstü eklentisi gerekebilir. Bu kısıt, kurucuyla çözülemeyen bir protokol farkıdır.
+Wayland compositor’ın `wlr-layer-shell` protokolünü desteklemesi gerekir. Desteklenmeyen compositor’larda bu uygulama pencereyi başka bir protokole gizlice düşürmez; açık hata verir. Bu davranış X11’e sessizce dönmekten daha güvenlidir.
