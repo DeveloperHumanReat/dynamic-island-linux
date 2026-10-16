@@ -15,7 +15,7 @@ chmod +x install.sh
 
 `installer.py` de artık doğrudan çalıştırılabilir. Tkinter eksikse dosyanın en başında bunu algılar, CachyOS dahil dağıtımı eşleştirir, `sudo pacman -S tk` komutunu otomatik çalıştırır ve kendisini yeniden başlatır. Böylece kullanıcı önce elle paket aramak zorunda kalmaz.
 
-Grafik kurucu uygulamayı kullanıcı hesabına `~/.local/share/dynamic-island-linux` altına, başlatıcıyı `~/.local/bin` altına ve uygulama menüsü girdisini `~/.local/share/applications` altına yazar. Bu nedenle uygulama dosyalarını kopyalamak için root gerekmez; yalnızca eksik sistem paketini kurarken sudo yetkisi istenir.
+Grafik kurucu uygulamayı kullanıcı hesabına `~/.local/share/dynamic-island-linux` altına, hata yakalayan başlatıcıyı `~/.local/bin` altına ve uygulama menüsü girdisini `~/.local/share/applications` altına yazar. Başlatıcı çalışma dizinini doğru ayarlar ve hata olursa `~/.local/state/dynamic-island-linux/launcher.log` dosyasına yazar; masaüstü bildirimi veya grafik hata mesajı göstermeye çalışır. Bu nedenle uygulama dosyalarını kopyalamak için root gerekmez; yalnızca eksik sistem paketini kurarken sudo yetkisi istenir.
 
 Kaldırmak için:
 
@@ -29,6 +29,12 @@ Kurulumdan sonra uygulamalar menüsünden **Dynamic Island for Linux** seçilebi
 
 ```bash
 ~/.local/bin/dynamic-island-linux
+```
+
+Uygulama görünmüyorsa sessizce kapanmaz; hata ayrıntısı şu logda bulunur:
+
+```bash
+cat ~/.local/state/dynamic-island-linux/launcher.log
 ```
 
 ## Prototip kontrolleri

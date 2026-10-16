@@ -15,9 +15,7 @@ from __future__ import annotations
 
 import math
 import os
-import tkinter as tk
 from dataclasses import dataclass
-from typing import Callable
 
 
 @dataclass
@@ -46,6 +44,8 @@ class DynamicIsland:
     ANIMATION_MS = 16
 
     def __init__(self, root: tk.Tk) -> None:
+        import tkinter as tk
+
         self.root = root
         self.expanded = False
         self.activity_index = 0
@@ -63,7 +63,7 @@ class DynamicIsland:
         root.configure(bg="#000001")
         try:
             root.wm_attributes("-transparentcolor", "#000001")
-        except tk.TclError:
+        except Exception:
             # Some compositors do not expose transparentcolor; the black
             # window still remains usable as a prototype.
             pass
@@ -215,6 +215,11 @@ def main() -> None:
             return
         except Exception as exc:
             print(f"Wayland backend unavailable, falling back to X11 backend: {exc}")
+    # Tkinter is an X11 fallback dependency only. Do not import it before
+    # selecting the Wayland backend: on minimal Wayland installations Tk may
+    # be absent even though GTK layer-shell is fully available.
+    import tkinter as tk
+
     root = tk.Tk()
     island = DynamicIsland(root)
     # Demo shortcut: press N to simulate a fresh system event.

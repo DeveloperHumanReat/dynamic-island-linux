@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import tkinter  # noqa: F401  # keeps the same Python runtime requirement as X11
 from dataclasses import dataclass
 
 import gi

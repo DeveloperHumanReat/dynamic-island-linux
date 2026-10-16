@@ -169,11 +169,13 @@ class Installer(tk.Tk):
             DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
             shutil.copy2(SOURCE_DIR / "app.py", INSTALL_DIR / "app.py")
             shutil.copy2(SOURCE_DIR / "wayland_app.py", INSTALL_DIR / "wayland_app.py")
+            shutil.copy2(SOURCE_DIR / "run.sh", INSTALL_DIR / "run.sh")
+            (INSTALL_DIR / "run.sh").chmod(0o755)
             shutil.copy2(SOURCE_DIR / "README.md", INSTALL_DIR / "README.md")
             self.write_log(f"Uygulama dizini: {INSTALL_DIR}")
 
             launcher = BIN_DIR / APP_ID
-            launcher.write_text(f"#!/bin/sh\nexec {sys.executable} {INSTALL_DIR / 'app.py'} \"$@\"\n")
+            launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'run.sh'} \"$@\"\n")
             launcher.chmod(0o755)
             self.after(0, lambda: self.update_status("Başlatıcı oluşturuluyor…", 55))
             self.write_log(f"Başlatıcı: {launcher}")
