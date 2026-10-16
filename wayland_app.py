@@ -117,7 +117,7 @@ class WaylandIsland:
 
     def draw(self, _area: Gtk.DrawingArea, ctx: cairo.Context) -> bool:
         w, h = self.width, self.height
-        ctx.set_operator(cairo.OPERATOR_CLEAR)
+        ctx.set_operator(cairo.Operator.CLEAR)
         ctx.paint()
         ctx.set_operator(cairo.OPERATOR_OVER)
         background = (0.035, 0.035, 0.05) if self.settings.get("theme") == "dark" else (0.88, 0.88, 0.92)
