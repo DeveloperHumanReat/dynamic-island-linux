@@ -66,7 +66,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
-from settings import autostart_entry
+from settings import autostart_entry, load as load_settings
 
 APP_ID = "dynamic-island-linux"
 APP_NAME = "Dynamic Island for Linux"
@@ -122,17 +122,25 @@ class Installer(Gtk.Window):
     def install(self) -> None:
         try:
             INSTALL_DIR.mkdir(parents=True, exist_ok=True); BIN_DIR.mkdir(parents=True, exist_ok=True); DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
-            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "system_monitor.py", "file_monitor.py", "settings.py", "run.sh", "README.md"):
+            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "system_monitor.py", "file_monitor.py", "settings.py", "control_panel.py", "run.sh", "README.md"):
                 shutil.copy2(SOURCE_DIR / name, INSTALL_DIR / name)
             (INSTALL_DIR / "run.sh").chmod(0o755)
             GLib.idle_add(self.set_status, "Dosyalar kuruldu…", 0.45)
             launcher = BIN_DIR / APP_ID
             launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'run.sh'} \"$@\"\n"); launcher.chmod(0o755)
+            panel_launcher = BIN_DIR / f"{APP_ID}-control"
+            panel_launcher.write_text(f"#!/bin/sh\nexec {sys.executable} {INSTALL_DIR / 'control_panel.py'} \"$@\"\n"); panel_launcher.chmod(0o755)
             desktop = DESKTOP_DIR / f"{APP_ID}.desktop"
             desktop.write_text(f"[Desktop Entry]\nType=Application\nName={APP_NAME}\nComment=Wayland Dynamic Island overlay\nExec={launcher}\nTerminal=false\nCategories=Utility;\nStartupNotify=true\n")
+            panel_desktop = DESKTOP_DIR / f"{APP_ID}-control.desktop"
+            panel_desktop.write_text(f"[Desktop Entry]\nType=Application\nName=Dynamic Island Control Panel\nComment=Configure Dynamic Island\nExec={panel_launcher}\nTerminal=false\nCategories=Settings;Utility;\nStartupNotify=true\n")
             autostart = Path.home() / ".config" / "autostart"
             autostart.mkdir(parents=True, exist_ok=True)
-            (autostart / f"{APP_ID}.desktop").write_text(autostart_entry(launcher))
+            autostart_file = autostart / f"{APP_ID}.desktop"
+            if load_settings().get("auto_start", True):
+                autostart_file.write_text(autostart_entry(launcher))
+            elif autostart_file.exists():
+                autostart_file.unlink()
             GLib.idle_add(self.set_status, "Uygulama menüsü güncelleniyor…", 0.8)
             if shutil.which("update-desktop-database"):
                 subprocess.run(["update-desktop-database", str(DESKTOP_DIR)], check=False)

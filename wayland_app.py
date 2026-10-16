@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import subprocess
 from dataclasses import dataclass
 
 import gi
@@ -65,7 +66,7 @@ class WaylandIsland:
         GtkLayerShell.init_for_window(self.window)
         GtkLayerShell.set_layer(self.window, GtkLayerShell.Layer.OVERLAY)
         GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.TOP, True)
-        GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, 18)
+        GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, int(self.settings.get("top_margin", 18)))
         GtkLayerShell.set_exclusive_zone(self.window, 0)
         GtkLayerShell.set_keyboard_interactivity(self.window, GtkLayerShell.KeyboardMode.ON_DEMAND)
 
@@ -74,12 +75,14 @@ class WaylandIsland:
         self.window.add(self.area)
         self.window.set_default_size(*self.COMPACT)
         self.window.show_all()
-        self.media = MediaController(self.on_media_update)
-        self.notifications = NotificationWatcher(self.on_notification)
-        self.system = SystemMonitor(self.on_system_update)
-        self.downloads = DownloadMonitor(self.on_download)
-        GLib.timeout_add(2000, self.system.poll)
-        GLib.timeout_add(3000, self.downloads.poll)
+        self.media = MediaController(self.on_media_update) if self.settings.get("enable_media", True) else None
+        self.notifications = NotificationWatcher(self.on_notification) if self.settings.get("enable_notifications", True) else None
+        self.system = SystemMonitor(self.on_system_update) if self.settings.get("enable_system", True) else None
+        self.downloads = DownloadMonitor(self.on_download) if self.settings.get("enable_downloads", True) else None
+        if self.system:
+            GLib.timeout_add(2000, self.system.poll)
+        if self.downloads:
+            GLib.timeout_add(3000, self.downloads.poll)
         GLib.timeout_add(1000, self.tick_timer)
         GLib.timeout_add(4200, self.auto_collapse)
 
@@ -149,13 +152,13 @@ class WaylandIsland:
     def on_click(self, _widget: Gtk.Widget, _event: Gdk.EventButton) -> bool:
         if self.expanded and _event.y >= 94:
             if 76 <= _event.x <= 122:
-                self.media.previous()
+                if self.media: self.media.previous()
                 return True
             if 122 <= _event.x <= 170:
-                self.media.play_pause()
+                if self.media: self.media.play_pause()
                 return True
             if 170 <= _event.x <= 220:
-                self.media.next()
+                if self.media: self.media.next()
                 return True
         self.set_expanded(not self.expanded)
         return True
@@ -188,6 +191,8 @@ class WaylandIsland:
                 GLib.source_remove(self.notification_timeout)
             self.notification_timeout = GLib.timeout_add(4200, self.auto_collapse)
             return False
+        if self.settings.get("do_not_disturb", False):
+            return
         GLib.idle_add(show)
 
     def on_download(self, filename: str) -> None:
@@ -260,11 +265,14 @@ class WaylandIsland:
                 self.activity = ACTIVITIES[self.activity_index]
             self.set_expanded(True)
         elif key == "t":
-            self.timer_remaining = 300; self.timer_running = True; self.set_expanded(True)
+            if self.settings.get("enable_timer", True):
+                self.timer_remaining = 300; self.timer_running = True; self.set_expanded(True)
         elif key == "c":
             self.timer_remaining = 0; self.timer_running = False; self.set_expanded(False)
         elif key == "s":
             self.show_settings()
+        elif key == "p":
+            subprocess.Popen([str(__import__('pathlib').Path.home() / ".local/bin/dynamic-island-linux-control")])
         elif key == "n":
             self.activity = Activity("✓", "Download complete", "File is ready", (0.44, 0.88, 0.63))
             self.set_expanded(True)

@@ -20,6 +20,8 @@ Wayland oturumunda `./install.sh` çalıştırın. Kurucu PyGObject, GTK3, gtk-l
 
 **Görsel özelleştirme:** `S` ile açılan ayar penceresinden koyu/açık tema seçilebilir. Ayarlar `~/.config/dynamic-island-linux/settings.json` içinde saklanır.
 
+**Kontrol paneli:** `P` ile tam GTK kontrol paneli açılır. Buradan medya, bildirim, sistem durumu, indirme, timer ve rahatsız etmeyin özellikleri ayrı ayrı açılıp kapatılabilir. Tema, üst boşluk, ölçek, bildirim süresi ve otomatik başlatma ayarları da panelden yönetilir. Kontrol paneli uygulamalar menüsüne **Dynamic Island Control Panel** olarak eklenir.
+
 **Birden fazla aktivite:** Medya, bildirim, indirme, timer ve sistem olayları öncelik sırasıyla aktivite kuyruğunda tutulur. `Space` veya `Enter` kuyruğun sonraki aktivitesine geçer.
 
 **Otomatik başlatma:** Kurulum uygulama menüsü girdisinin yanında kullanıcı oturumunda otomatik başlatma girdisi oluşturur.
@@ -36,6 +38,7 @@ Wayland oturumunda `./install.sh` çalıştırın. Kurucu PyGObject, GTK3, gtk-l
 - `C`: timer’ı durdur
 - `B`: okunmamış bildirim sayısını göster ve temizle
 - `S`: tema ayarlarını aç
+- `P`: tam kontrol panelini aç
 - `N`: demo bildirim olayı
 - `Esc`: Compact görünüm
 - `Q`: kapat

@@ -12,6 +12,12 @@ DEFAULTS = {
     "top_margin": 18,
     "auto_start": True,
     "notification_duration": 4200,
+    "do_not_disturb": False,
+    "enable_media": True,
+    "enable_notifications": True,
+    "enable_system": True,
+    "enable_downloads": True,
+    "enable_timer": True,
 }
 
 
