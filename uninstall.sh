@@ -7,6 +7,7 @@ rm -f "$HOME/.local/share/applications/dynamic-island-linux.desktop"
 rm -f "$HOME/.local/share/applications/dynamic-island-linux-control.desktop"
 rm -f "$HOME/.config/autostart/dynamic-island-linux.desktop"
 rm -f "$HOME/.config/dynamic-island-linux/settings.json"
+rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/dynamic-island-linux.svg"
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
 fi

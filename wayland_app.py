@@ -63,12 +63,22 @@ class WaylandIsland:
         self.window.connect("key-press-event", self.on_key)
         self.window.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
 
-        GtkLayerShell.init_for_window(self.window)
-        GtkLayerShell.set_layer(self.window, GtkLayerShell.Layer.OVERLAY)
-        GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.TOP, True)
-        GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, int(self.settings.get("top_margin", 18)))
-        GtkLayerShell.set_exclusive_zone(self.window, 0)
-        GtkLayerShell.set_keyboard_interactivity(self.window, GtkLayerShell.KeyboardMode.ON_DEMAND)
+        self.layer_shell_active = False
+        try:
+            GtkLayerShell.init_for_window(self.window)
+            GtkLayerShell.set_layer(self.window, GtkLayerShell.Layer.OVERLAY)
+            GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.TOP, True)
+            GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, int(self.settings.get("top_margin", 18)))
+            GtkLayerShell.set_exclusive_zone(self.window, 0)
+            GtkLayerShell.set_keyboard_interactivity(self.window, GtkLayerShell.KeyboardMode.ON_DEMAND)
+            self.layer_shell_active = True
+        except Exception as exc:
+            # Some Wayland compositors do not expose layer-shell. Keep the
+            # island visible as a regular undecorated Wayland window instead
+            # of exiting silently; it remains fully GTK/Wayland based.
+            print(f"Layer-shell kullanılamıyor, görünür Wayland pencere fallback'i: {exc}")
+            self.window.set_title("Dynamic Island for Linux")
+            self.window.set_keep_above(True)
 
         self.area = Gtk.DrawingArea()
         self.area.connect("draw", self.draw)

@@ -36,4 +36,4 @@ def save(data: dict) -> None:
 
 def autostart_entry(launcher: Path) -> str:
     return ("[Desktop Entry]\nType=Application\nName=Dynamic Island for Linux\n"
-            f"Exec={launcher}\nX-GNOME-Autostart-enabled=true\nNoDisplay=true\n")
+            f"Exec={launcher}\nIcon=dynamic-island-linux\nX-GNOME-Autostart-enabled=true\nNoDisplay=true\n")

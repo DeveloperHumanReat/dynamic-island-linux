@@ -122,7 +122,7 @@ class Installer(Gtk.Window):
     def install(self) -> None:
         try:
             INSTALL_DIR.mkdir(parents=True, exist_ok=True); BIN_DIR.mkdir(parents=True, exist_ok=True); DESKTOP_DIR.mkdir(parents=True, exist_ok=True)
-            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "system_monitor.py", "file_monitor.py", "settings.py", "control_panel.py", "run.sh", "README.md"):
+            for name in ("main.py", "wayland_app.py", "media.py", "notification_watcher.py", "system_monitor.py", "file_monitor.py", "settings.py", "control_panel.py", "run.sh", "README.md", "dynamic-island-linux.svg"):
                 shutil.copy2(SOURCE_DIR / name, INSTALL_DIR / name)
             (INSTALL_DIR / "run.sh").chmod(0o755)
             GLib.idle_add(self.set_status, "Dosyalar kuruldu…", 0.45)
@@ -130,10 +130,13 @@ class Installer(Gtk.Window):
             launcher.write_text(f"#!/bin/sh\nexec {INSTALL_DIR / 'run.sh'} \"$@\"\n"); launcher.chmod(0o755)
             panel_launcher = BIN_DIR / f"{APP_ID}-control"
             panel_launcher.write_text(f"#!/bin/sh\nexec {sys.executable} {INSTALL_DIR / 'control_panel.py'} \"$@\"\n"); panel_launcher.chmod(0o755)
+            icon_dir = Path.home() / ".local" / "share" / "icons" / "hicolor" / "scalable" / "apps"
+            icon_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(SOURCE_DIR / "dynamic-island-linux.svg", icon_dir / f"{APP_ID}.svg")
             desktop = DESKTOP_DIR / f"{APP_ID}.desktop"
-            desktop.write_text(f"[Desktop Entry]\nType=Application\nName={APP_NAME}\nComment=Wayland Dynamic Island overlay\nExec={launcher}\nTerminal=false\nCategories=Utility;\nStartupNotify=true\n")
+            desktop.write_text(f"[Desktop Entry]\nType=Application\nName={APP_NAME}\nComment=Wayland Dynamic Island overlay\nExec={launcher}\nIcon={APP_ID}\nTerminal=false\nCategories=Utility;\nStartupNotify=true\n")
             panel_desktop = DESKTOP_DIR / f"{APP_ID}-control.desktop"
-            panel_desktop.write_text(f"[Desktop Entry]\nType=Application\nName=Dynamic Island Control Panel\nComment=Configure Dynamic Island\nExec={panel_launcher}\nTerminal=false\nCategories=Settings;Utility;\nStartupNotify=true\n")
+            panel_desktop.write_text(f"[Desktop Entry]\nType=Application\nName=Dynamic Island Control Panel\nComment=Configure Dynamic Island\nExec={panel_launcher}\nIcon={APP_ID}\nTerminal=false\nCategories=Settings;Utility;\nStartupNotify=true\n")
             autostart = Path.home() / ".config" / "autostart"
             autostart.mkdir(parents=True, exist_ok=True)
             autostart_file = autostart / f"{APP_ID}.desktop"
